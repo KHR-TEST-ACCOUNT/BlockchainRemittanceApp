@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -9,7 +11,7 @@ import (
 
 type Block struct {
 	nonce        int
-	previousHash string
+	previousHash [32]byte
 	timestamp    int64
 	transaction  []string
 }
@@ -22,8 +24,9 @@ type Blockchaine struct {
 // BlockChaineを生成して返す。
 func NewBlockChain() *Blockchaine {
 	// create pointer
+	b := &Block{}
 	bc := new(Blockchaine)
-	bc.CreateBlock(0, "Init Hash!")
+	bc.CreateBlock(0, b.Hash())
 	return bc
 }
 
@@ -31,14 +34,21 @@ func NewBlockChain() *Blockchaine {
 BlockをBlockchainの配列に格納し、
 return: Blockポインタ
 */
-func (bc *Blockchaine) CreateBlock(nonce int, previousHash string) *Block {
+func (bc *Blockchaine) CreateBlock(nonce int, previousHash [32]byte) *Block {
 	b := NewBlock(nonce, previousHash)
 	bc.chain = append(bc.chain, b)
 	return b
 }
 
+/*
+最後のブロックを取り出す。
+*/
+func (bc *Blockchaine) LastBlcok() *Block {
+	return bc.chain[len(bc.chain)-1]
+}
+
 // Blockを生成して返す。
-func NewBlock(nonce int, previousHash string) *Block {
+func NewBlock(nonce int, previousHash [32]byte) *Block {
 	b := new(Block)
 	b.timestamp = time.Now().UnixNano()
 	b.nonce = nonce
@@ -50,8 +60,34 @@ func NewBlock(nonce int, previousHash string) *Block {
 func (b *Block) Print() {
 	fmt.Printf("timestamp       %d\n", b.timestamp)
 	fmt.Printf("nonce           %d\n", b.nonce)
-	fmt.Printf("previousHash    %s\n", b.previousHash)
+	fmt.Printf("previousHash    %x\n", b.previousHash)
 	fmt.Printf("transaction     %s\n", b.transaction)
+}
+
+/*
+JsonマーシャルにBlcokを格納。
+*/
+func (b *Block) Hash() [32]byte {
+	m, _ := json.Marshal(b)
+	fmt.Println(string(m))
+	return sha256.Sum256([]byte(m))
+}
+
+/*
+Json マーシャルへの格納をオーバーライドして値が取得できるように変更
+*/
+func (b *Block) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Nonce        int      `json: "nonce"`
+		PreviousHash [32]byte `json: "previous_hash"`
+		Timestamp    int64    `json: "timestamp"`
+		Transaction  []string `json: "transaction"`
+	}{
+		Nonce:        b.nonce,
+		PreviousHash: b.previousHash,
+		Timestamp:    b.timestamp,
+		Transaction:  b.transaction,
+	})
 }
 
 /*
@@ -70,10 +106,15 @@ func init() {
 }
 
 func main() {
+	//1 - block
 	blockchaine := NewBlockChain()
 	blockchaine.Print()
-	blockchaine.CreateBlock(1, "hash 1")
+	// 2- block
+	previousHash := blockchaine.LastBlcok().Hash()
+	blockchaine.CreateBlock(1, previousHash)
 	blockchaine.Print()
-	blockchaine.CreateBlock(2, "hash 2")
+	// 3 - block
+	previousHash = blockchaine.LastBlcok().Hash()
+	blockchaine.CreateBlock(2, previousHash)
 	blockchaine.Print()
 }
