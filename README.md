@@ -1,0 +1,2 @@
+# BlockchainRemittanceApp
+ブロックチェーンを活用したビットコインの送金システム
